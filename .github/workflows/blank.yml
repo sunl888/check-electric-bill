@@ -1,46 +1,41 @@
-name: Check Number and Send Email  
+name: 检查电费并发送通知 
   
 on:  
   schedule:  
-    # 每5分钟运行一次  
+    # 每10分钟运行一次  
     - cron: '*/10 * * * *'  
   
 jobs:  
   check-number-and-send-email:  
     runs-on: ubuntu-latest  
     steps:  
-      - name: Check Number from URL  
+      - name: 检查电费 
         id: check-number  
         run: |  
           RESPONSE=$(curl -s -H "User-Agent: Android 6.0" https://www.wap.cnyiot.com/nat/pay.aspx?mid=19500754882)
-          # 假设你从某个URL获取到的数字是纯文本格式，例如 "198.97"  
           NUMBER=$(echo $RESPONSE | grep -oP 'inline-block;">\K\d+\.\d+(?=</label> <span>元<)')
-          echo "Number from URL: $NUMBER"  
-            
-          # 判断数字是否小于10  
-          if (( $(echo "$NUMBER < 200" | bc -l) )); then  
-            echo "Number is less than 10"  
+          echo "当前电费: $NUMBER"  
+          echo "电费提醒阈值: ${{ variables.ELECTRIC_NOTICE_VAL }}"
+          
+          # 判断电费是否不足
+          if (( $(echo "$NUMBER < ${{ variables.ELECTRIC_NOTICE_VAL }}" | bc -l) )); then
             echo "::set-output name=send_email::true"  
             echo "::set-output name=number::$NUMBER"  
           else  
-            echo "Number is not less than 10"  
             echo "::set-output name=send_email::false"  
           fi  
   
-      - name: Send Email if Number is Less Than 10  
+      - name: 发送电费不足通知  
         if: steps.check-number.outputs.send_email == 'true'  
         uses: dawidd6/action-send-mail@v3  
         with:  
-          # 邮件服务器设置，这里以SMTP为例  
           server_address: smtp.qq.com 
-          server_port: 465 # 通常是465或587，取决于你的邮件服务器配置  
-          username: ${{ secrets.MAIL_USERNAME }}  # 你的邮箱地址  
-          password: ${{ secrets.MAIL_PASSWORD }}  # 你的邮箱密码或应用专用密码  
+          server_port: 465 
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
           subject: 电费不足提醒  
           to: ${{ secrets.TO_MAIL }}
           from: ${{ secrets.FROM_MAIL }} 
           body: | 
-              你的电费已经小于10: ${{ steps.check-number.outputs.number }}
-          
-          
-
+              你的电费已不足，请尽快充电: ${{ steps.check-number.outputs.number }}
+              
