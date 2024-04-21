@@ -18,7 +18,7 @@ jobs:
           echo "Number from URL: $NUMBER"  
             
           # 判断数字是否小于10  
-          if (( $(echo "$NUMBER < 10" | bc -l) )); then  
+          if (( $(echo "$NUMBER < 200" | bc -l) )); then  
             echo "Number is less than 10"  
             echo "::set-output name=send_email::true"  
             echo "::set-output name=number::$NUMBER"  
