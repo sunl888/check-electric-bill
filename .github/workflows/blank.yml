@@ -3,7 +3,7 @@ name: 检查电费并发送通知
 on:  
   schedule:  
     # 每10分钟运行一次  
-    - cron: '*/10 * * * *'  
+    - cron: '*/5 * * * *'  
   
 jobs:  
   check-number-and-send-email:  
@@ -15,10 +15,10 @@ jobs:
           RESPONSE=$(curl -s -H "User-Agent: Android 6.0" https://www.wap.cnyiot.com/nat/pay.aspx?mid=19500754882)
           NUMBER=$(echo $RESPONSE | grep -oP 'inline-block;">\K\d+\.\d+(?=</label> <span>元<)')
           echo "当前电费: $NUMBER"  
-          echo "电费提醒阈值: ${{ variables.ELECTRIC_NOTICE_VAL }}"
+          echo "电费提醒阈值: $ELECTRIC_NOTICE_VAL"
           
           # 判断电费是否不足
-          if (( $(echo "$NUMBER < ${{ variables.ELECTRIC_NOTICE_VAL }}" | bc -l) )); then
+          if (( $(echo "$NUMBER < $ELECTRIC_NOTICE_VAL" | bc -l) )); then
             echo "::set-output name=send_email::true"  
             echo "::set-output name=number::$NUMBER"  
           else  
