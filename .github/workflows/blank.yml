@@ -2,8 +2,8 @@ name: 检查电费并发送通知
   
 on:  
   schedule:  
-    # 每10分钟运行一次  
-    - cron: '*/5 * * * *'  
+    # 每1h运行一次  
+    - cron: '0 */1 * * *'  
   
 jobs:  
   check-number-and-send-email:  
