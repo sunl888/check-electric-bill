@@ -3,7 +3,7 @@ name: Check Electric Bill and Send Email
 on:  
   schedule:  
     # 每10分钟运行一次  
-    - cron: '*/10 * * * *'  
+    - cron: '1 */10 * * * *'  
   
 jobs:  
   check-electric-bill-and-send-email:  
