@@ -22,7 +22,7 @@ jobs:
           #  echo "::set-output name=send_email::true"  
           #  echo "::set-output name=number::$NUMBER"  
             echo "send_email=true" >> $GITHUB_OUTPUT
-            echo "number=$NUMBER"  
+            echo "number=$NUMBER" >> $GITHUB_OUTPUT
           else  
           #  echo "::set-output name=send_email::false"  
             echo "send_email=false" >> $GITHUB_OUTPUT
