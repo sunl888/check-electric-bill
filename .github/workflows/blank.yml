@@ -3,7 +3,7 @@ name: 检查电费并发送通知
 on:  
   schedule:  
     # 每1h运行一次  
-    - cron: '10 * * * *'   
+    - cron: '*/5 * * * *'   
   workflow_dispatch: 
   
 jobs:  
