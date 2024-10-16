@@ -10,12 +10,19 @@ jobs:
   check-number-and-send-email:  
     runs-on: ubuntu-latest  
     env:  
+      TZ: Asia/Shanghai # 设置时区为上海
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 用于推送更改到GitHub仓库  
     steps:  
-      - name: Checkout repository  
+      - name: 安装 tzdata 工具
+        run: sudo apt-get install -y tzdata  
+  
+      - name: 设置时区  
+        run: sudo timedatectl set-timezone $TZ  
+  
+      - name: 进入仓库  
         uses: actions/checkout@v2 
         
-      - name: pull changes
+      - name: 拉取变更
         run: |   
           git pull  
           
@@ -36,7 +43,7 @@ jobs:
             echo "send_email=false" >> $GITHUB_OUTPUT
           fi
           
-      - name: Commit and push changes  
+      - name: 提交变更  
         run: |  
           git config --local user.email "2013855675@qq.com"  
           git config --local user.name "sunl888"  
