@@ -3,9 +3,9 @@
 <head>  
     <meta charset="UTF-8">  
     <meta name="viewport" content="width=device-width, initial-scale=1.0">  
-    <title>ECharts Report</title>  
+    <title>电费统计报表</title>  
     <!-- 引入 ECharts 文件 -->  
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
     <!-- 引入 Papa Parse 用于解析 CSV 文件 -->  
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>  
     <style>  
@@ -18,8 +18,8 @@
         }  
         #main {  
             width: 100%;  
-            max-width: 800px;  
-            height: 500px;  
+            max-width: 1200px;  
+            height: 600px;  
             margin: 0 auto;  
             background-color: #fff;  
             border-radius: 8px;  
@@ -41,12 +41,11 @@
                 // 转换数据格式  
                 var data = results.data.slice(1).map(function(row) {  
                     return [row[0], parseFloat(row[1])];  
-                });  
-                  console.log('数据：'+ data);
+                });   
                 // 指定图表的配置项和数据  
                 var option = {  
                     title: {  
-                        text: '电费报表',  
+                        text: '电费使用趋势',  
                         left: 'center',  
                         textStyle: {  
                             color: '#333',  
@@ -62,7 +61,7 @@
                     },  
                     xAxis: {  
                         type: 'category',  
-                        data: data.map(function(item) { return item[0]; })  ,
+                        data: data.map(function(item) { return item[0]; }),
                         axisLine: {  
                             lineStyle: {  
                                 color: '#333'  
@@ -98,9 +97,9 @@
                         }  
                     },  
                     series: [{  
-                        name: 'Value',  
+                        name: '当前剩余电费',  
                         type: 'line',  
-                        data: data.map(function(item) { return item[1]; })  ,
+                        data: data.map(function(item) { return item[1]; }),
                         smooth: true, // 使线条平滑  
                         itemStyle: {  
                             color: '#1f77b4', // 自定义线条颜色  
