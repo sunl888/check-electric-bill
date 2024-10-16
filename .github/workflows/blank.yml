@@ -46,7 +46,8 @@ jobs:
         run: |  
           git config --local user.email "2013855675@qq.com"  
           git config --local user.name "sunl888"  
-          git commit -m "Update electricity bill data"  
+          git add -A
+          git commit -am "Update electricity bill data"  
           git push  
           
       - name: 发送电费不足通知  
