@@ -26,7 +26,7 @@ jobs:
           NUMBER=$(echo $RESPONSE | grep -oP 'inline-block;">\K\d+\.\d+(?=</label> <span>元<)')
           echo "当前电费: $NUMBER"  
           echo "电费提醒阈值: ${{ vars.ELECTRIC_NOTICE_VAL }}"
-          echo "$(date +'%Y-%m-%d %H:%M:%S'),$NUMBER" >> docs/data.csv
+          echo "$(date +'%Y-%m-%d %H:%M'),$NUMBER" >> docs/data.csv
           
           # 判断电费是否不足
           if (( $(echo "$NUMBER < ${{ vars.ELECTRIC_NOTICE_VAL }}" | bc -l) )); then
