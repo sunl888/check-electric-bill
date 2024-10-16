@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>电费统计报表</title>
+    <title>电费使用情况报表</title>
     <!-- 引入 ECharts 文件 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
     <!-- 引入 Papa Parse 用于解析 CSV 文件 -->
@@ -45,8 +45,8 @@
 <body>
     <!-- 准备一个 DOM 容器 -->
     <div id="main">
-        <div id="line-chart" class="chart-container"></div> <!-- 折线图容器 -->
-        <div id="gauge-chart" class="chart-container"></div> <!-- 仪表盘容器 -->
+         <div id="gauge-chart" class="chart-container"></div> <!-- 仪表盘容器 -->
+        <div id="line-chart" class="chart-container"></div> <!-- 折线图容器 --> 
     </div>
     <script>
         // 基于准备好的 DOM，初始化 echarts 实例（折线图）  
@@ -56,14 +56,16 @@
         Papa.parse('data.csv', {
             download: true,
             complete: function (results) {
+                // 取最近100条数据
+                let startIndex = Math.max(results.data.length - 100, 1);  
                 // 转换数据格式  
-                var data = results.data.slice(1).map(function (row) {
+                var data = results.data.slice(startIndex).map(function (row) {
                     return [row[0], parseFloat(row[1])];
                 });
                 // 指定图表的配置项和数据  
                 var lineOption = {
                     title: {
-                        text: '电费使用趋势',
+                        text: '用电趋势',
                         left: 'center',
                         textStyle: {
                             color: '#333',
@@ -115,7 +117,7 @@
                         }
                     },
                     series: [{
-                        name: '当前剩余电费',
+                        name: '剩余电费',
                         type: 'line',
                         data: data.map(function (item) { return item[1]; }),
                         smooth: true, // 使线条平滑  
@@ -135,7 +137,6 @@
                         }
                     }]
                 };
-
                 // 使用刚指定的配置项和数据显示折线图  
                 lineChart.setOption(lineOption);
 
@@ -149,7 +150,7 @@
                 // 仪表盘的配置项  
                 var gaugeOption = {
                     title: {
-                        text: '当前电费状态',
+                        text: '当前电费',
                         left: 'center'
                     },
                     series: [{
@@ -159,12 +160,11 @@
                         data: [{ value: lastDataPoint, name: '电费' }]
                     }]
                 };
-
                 // 使用刚指定的配置项和数据显示仪表盘  
                 gaugeChart.setOption(gaugeOption);
             },
             error: function (error) {
-                console.error('Error parsing CSV:', error);
+                console.error('CSV 文件解析失败:', error);
             }
         });  
     </script>
