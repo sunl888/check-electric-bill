@@ -33,18 +33,14 @@
     <script>  
         // 基于准备好的 DOM，初始化 echarts 实例  
         var myChart = echarts.init(document.getElementById('main'));  
-  
-        // 异步获取 CSV 数据（这里使用了一个占位符URL，请替换为你的CSV文件URL）  
-        var csvUrl = 'data.csv'; // 替换为你的CSV文件URL  
-  
+   
         // 使用Papa Parse解析CSV文件  
-        Papa.parse(csvUrl, {  
-            download: true,  
-            header: true, // 假设CSV文件有表头  
+        Papa.parse('data.csv', {  
+            download: true,    
             complete: function(results) {  
                 // 转换数据格式  
-                var data = results.data.map(function(row) {  
-                    return [row.Date, parseFloat(row.Value)];  
+                var data = results.data.slice(1).map(function(row) {  
+                    return [row[0], parseFloat(row[1])];  
                 });  
                   console.log('数据：'+ data);
                 // 指定图表的配置项和数据  
@@ -62,19 +58,11 @@
                         trigger: 'axis',  
                         axisPointer: {  
                             type: 'cross'  
-                        },  
-                        formatter: function(params) {  
-                            var result = '';  
-                            params.forEach(function(item) {  
-                                result += item.seriesName + '<br/>' +  
-                                        item.name + ': ' + item.value;  
-                            });  
-                            return result;  
                         }  
                     },  
                     xAxis: {  
                         type: 'category',  
-                        data: data.map(function(item) { return item[0]; }),  
+                        data: data.map(function(item) { return item[0]; })  
                         axisLine: {  
                             lineStyle: {  
                                 color: '#333'  
@@ -112,7 +100,7 @@
                     series: [{  
                         name: 'Value',  
                         type: 'line',  
-                        data: data.map(function(item) { return item[1]; }),  
+                        data: data.map(function(item) { return item[1]; })  ,
                         smooth: true, // 使线条平滑  
                         itemStyle: {  
                             color: '#1f77b4', // 自定义线条颜色  
