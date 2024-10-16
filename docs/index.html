@@ -1,1 +1,55 @@
 
+<!DOCTYPE html>  
+<html lang="en">  
+<head>  
+    <meta charset="UTF-8">  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+    <title>ECharts Report</title>  
+    <!-- 引入 ECharts 文件 -->  
+    <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>  
+    <!-- 引入 Papa Parse 用于解析 CSV 文件 -->  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>  
+</head>  
+<body>  
+    <!-- 准备一个 DOM 容器 -->  
+    <div id="main" style="width: 600px;height:400px;"></div>  
+    <script>  
+        // 基于准备好的 DOM，初始化 echarts 实例  
+        var myChart = echarts.init(document.getElementById('main'));  
+  
+        // 异步获取 CSV 数据  
+        Papa.parse('./../data.csv', {  
+            download: true,  
+            complete: function(results) {  
+                // 转换数据格式  
+                var data = results.data.slice(1).map(function(row) {  
+                    return [row[0], parseFloat(row[1])];  
+                });  
+  
+                // 指定图表的配置项和数据  
+                var option = {  
+                    title: {  
+                        text: 'Data Report'  
+                    },  
+                    tooltip: {},  
+                    xAxis: {  
+                        type: 'category',  
+                        data: data.map(function(item) { return item[0]; })  
+                    },  
+                    yAxis: {  
+                        type: 'value'  
+                    },  
+                    series: [{  
+                        name: 'Value',  
+                        type: 'line',  
+                        data: data.map(function(item) { return item[1]; })  
+                    }]  
+                };  
+  
+                // 使用刚指定的配置项和数据显示图表。  
+                myChart.setOption(option);  
+            }  
+        });  
+    </script>  
+</body>  
+</html>
