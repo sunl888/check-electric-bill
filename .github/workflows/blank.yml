@@ -15,12 +15,10 @@ jobs:
     steps:  
       - name: Checkout repository  
         uses: actions/checkout@v2 
+        
       - name: pull changes
-        run: |  
-          git config --local user.email "2013855675@qq.com"  
-          git config --local user.name "sunl888"  
-          git pull 
-          mkdir .docs
+        run: |   
+          git pull  
           
       - name: 检查电费 
         id: check-number  
@@ -33,12 +31,9 @@ jobs:
           
           # 判断电费是否不足
           if (( $(echo "$NUMBER < ${{ vars.ELECTRIC_NOTICE_VAL }}" | bc -l) )); then
-          #  echo "::set-output name=send_email::true"  
-          #  echo "::set-output name=number::$NUMBER"  
             echo "send_email=true" >> $GITHUB_OUTPUT
             echo "number=$NUMBER" >> $GITHUB_OUTPUT
-          else  
-          #  echo "::set-output name=send_email::false"  
+          else    
             echo "send_email=false" >> $GITHUB_OUTPUT
           fi
           
@@ -46,6 +41,7 @@ jobs:
         run: |  
           git config --local user.email "2013855675@qq.com"  
           git config --local user.name "sunl888"  
+          mkdir -p docs
           git add -A
           git commit -am "Update electricity bill data"  
           git push  
