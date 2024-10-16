@@ -4,11 +4,18 @@ on:
   schedule:  
     # 每1h运行一次  
     - cron: '0 */1 * * *'  
+    
+  workflow_dispatch: 
   
 jobs:  
   check-number-and-send-email:  
     runs-on: ubuntu-latest  
+    env:  
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 用于推送更改到GitHub仓库  
     steps:  
+      - name: Checkout repository  
+        uses: actions/checkout@v2 
+         
       - name: 检查电费 
         id: check-number  
         run: |  
@@ -16,6 +23,7 @@ jobs:
           NUMBER=$(echo $RESPONSE | grep -oP 'inline-block;">\K\d+\.\d+(?=</label> <span>元<)')
           echo "当前电费: $NUMBER"  
           echo "电费提醒阈值: ${{ vars.ELECTRIC_NOTICE_VAL }}"
+          echo "$(date +'%Y-%m-%d %H:%M:%S'),$NUMBER" >> data.csv
           
           # 判断电费是否不足
           if (( $(echo "$NUMBER < ${{ vars.ELECTRIC_NOTICE_VAL }}" | bc -l) )); then
@@ -26,8 +34,16 @@ jobs:
           else  
           #  echo "::set-output name=send_email::false"  
             echo "send_email=false" >> $GITHUB_OUTPUT
-          fi  
-  
+          fi
+          
+      - name: Commit and push changes  
+        run: |  
+          git config --local user.email "2013855675@qq.com"  
+          git config --local user.name "sunl888"  
+          git add data.csv  
+          git commit -m "Update electricity bill data"  
+          git push  
+          
       - name: 发送电费不足通知  
         if: steps.check-number.outputs.send_email == 'true'  
         uses: dawidd6/action-send-mail@v3  
