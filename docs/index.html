@@ -142,9 +142,6 @@
 
                 // 获取折线图的最后一条数据作为仪表盘的数据源  
                 var lastDataPoint = data[data.length - 2][1];
-                console.log(lastDataPoint);
-                console.log(data);
-                 console.log(data.length);
                 // 初始化echarts实例（仪表盘）  
                 var gaugeChart = echarts.init(document.getElementById('gauge-chart'));
                 // 仪表盘的配置项  
@@ -154,6 +151,7 @@
                         left: 'center'
                     },
                     series: [{
+                        max: 220,
                         name: '电费',
                         type: 'gauge',
                         detail: { formatter: '{value}' },
