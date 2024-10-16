@@ -56,8 +56,8 @@
         Papa.parse('data.csv', {
             download: true,
             complete: function (results) {
-                // 取最近100条数据
-                let startIndex = Math.max(results.data.length - 100, 1);  
+                // 取最近30条数据
+                let startIndex = Math.max(results.data.length - 30, 1);  
                 // 转换数据格式  
                 var data = results.data.slice(startIndex).map(function (row) {
                     return [row[0], parseFloat(row[1])];
@@ -89,7 +89,7 @@
                         },
                         axisLabel: {
                             color: '#666',
-                            fontSize: 14
+                            fontSize: 10
                         },
                         splitLine: {
                             show: true,
@@ -107,7 +107,7 @@
                         },
                         axisLabel: {
                             color: '#666',
-                            fontSize: 14
+                            fontSize: 10
                         },
                         splitLine: {
                             show: true,
@@ -130,7 +130,7 @@
                             position: 'top',
                             formatter: '{c}',
                             color: '#333',
-                            fontSize: 12
+                            fontSize: 8
                         },
                         areaStyle: {
                             color: 'rgba(31, 119, 180, 0.2)' // 填充区域颜色  
