@@ -46,11 +46,11 @@
                 var data = results.data.map(function(row) {  
                     return [row.Date, parseFloat(row.Value)];  
                 });  
-  
+                  console.log('数据：'+ data);
                 // 指定图表的配置项和数据  
                 var option = {  
                     title: {  
-                        text: 'Data Report',  
+                        text: '电费报表',  
                         left: 'center',  
                         textStyle: {  
                             color: '#333',  
