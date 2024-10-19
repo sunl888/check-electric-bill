@@ -67,7 +67,9 @@
                     // 将键和值设置到 Map 中  
                     dataMap.set(key, parseFloat(row[1]));  
                 });  
-                let startIndex = Math.max(dataMap.keys().length - 30, 1);  
+                let keysArr = [...dataMap.keys()];  
+                let valuesArr = [...dataMap.values()];   
+                let startIndex = Math.max(keysArr.length - 30, 1);  
 
                 // 指定图表的配置项和数据  
                 var lineOption = {
@@ -88,7 +90,7 @@
                     },
                     xAxis: {
                         type: 'category',
-                        data: dataMap.keys().slice(startIndex).map(function (item) { return item[0]; }),
+                        data: keysArr.slice(startIndex).map(function (item) { return item; }),
                         axisLine: {
                             lineStyle: {
                                 color: '#333'
@@ -126,7 +128,7 @@
                     series: [{
                         name: '剩余电费',
                         type: 'line',
-                        data: dataMap.values().slice(startIndex).map(function (item) { return item[0]; }),
+                        data: valuesArr.slice(startIndex).map(function (item) { return item; }),
                         smooth: true, // 使线条平滑  
                         itemStyle: {
                             color: '#1f77b4', // 自定义线条颜色  
