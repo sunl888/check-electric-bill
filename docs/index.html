@@ -55,13 +55,20 @@
         // 使用Papa Parse解析CSV文件  
         Papa.parse('data.csv', {
             download: true,
-            complete: function (results) {
-                // 取最近30条数据
-                let startIndex = Math.max(results.data.length - 30, 1);  
-                // 转换数据格式  
-                var data = results.data.slice(startIndex).map(function (row) {
-                    return [row[0], parseFloat(row[1])];
-                });
+            complete: function (results) {  
+                // 创建一个新的 Map 对象  
+                let dataMap = new Map();   
+                // 遍历 results.data 数组  
+                results.data.forEach(function (row) {  
+                    // 生成键：只保留日期和小时部分  
+                    let key = row[0].slice(0, 13).replace(/:\d{2}$/, ''); // 使用正则表达式去掉分钟部分  
+                    // 或者更简单地，如果你确定时间格式总是 "YYYY-MM-DD HH:mm"  
+                    // let key = row[0].slice(0, 10) + ' ' + row[0].slice(11, 13); // 但这样不如上面的方法通用   
+                    // 将键和值设置到 Map 中  
+                    dataMap.set(key, parseFloat(row[1]));  
+                });  
+                let startIndex = Math.max(dataMap.keys().length - 30, 1);  
+
                 // 指定图表的配置项和数据  
                 var lineOption = {
                     title: {
@@ -81,7 +88,7 @@
                     },
                     xAxis: {
                         type: 'category',
-                        data: data.map(function (item) { return item[0]; }),
+                        data: dataMap.keys().slice(startIndex).map(function (item) { return item[0]; }),
                         axisLine: {
                             lineStyle: {
                                 color: '#333'
@@ -119,7 +126,7 @@
                     series: [{
                         name: '剩余电费',
                         type: 'line',
-                        data: data.map(function (item) { return item[1]; }),
+                        data: dataMap.values().slice(startIndex).map(function (item) { return item[0]; }),
                         smooth: true, // 使线条平滑  
                         itemStyle: {
                             color: '#1f77b4', // 自定义线条颜色  
