@@ -1,171 +1,148 @@
-
 <!DOCTYPE html>
-<html lang="zh-CN">
-
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>电费余额图表</title>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/utc.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/timezone.js"></script>
-    <style>
-        #main {
-            width: 100%;
-            height: 600px;
-        }
-        #slider-container {
-            margin-top: 20px;
-            width: 100%;
-        }
-        #date-slider {
-            width: 100%;
-        }
-    </style>
+    <meta charset="utf-8">
+    <title>24小时电费监控</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.2/dist/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
 </head>
-
 <body>
-    <div id="main"></div>
-    <div id="slider-container">
-        <input type="range" id="date-slider" min="0" max="0" value="0">
-    </div>
-    <script>
-        dayjs.extend(window.dayjs_plugin_utc);
-        dayjs.extend(window.dayjs_plugin_timezone);
-        dayjs.tz.setDefault('Asia/Shanghai');
+    <div id="main" style="width: 100%;height:600px;"></div>
 
-        var chartDom = document.getElementById('main');
-        var myChart = echarts.init(chartDom);
-        var option;
+<script>
+let rawData = [];
+let myChart;
+const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
-        var allData = [];
-        var slider = document.getElementById('date-slider');
-
-        function fetchData() {
-            return new Promise((resolve, reject) => {
-                var xhr = new XMLHttpRequest();
-                xhr.open('GET', `/mnt/data.csv`, true);
-                xhr.onload = function () {
-                    if (this.status === 200) {
-                        var lines = this.responseText.split('\n').filter(line => line.trim()!== '');
-                        var headers = lines[0].split(',');
-                        var dateIndex = headers.indexOf('date');
-                        var valueIndex = headers.indexOf('value');
-                        var data = [];
-                        for (var i = 1; i < lines.length; i++) {
-                            var line = lines[i].split(',');
-                            var date = line[dateIndex];
-                            var value = parseFloat(line[valueIndex]);
-                            data.push({ date: date, value: value });
-                        }
-
-                        // 处理同一分钟内多条数据的情况
-                        var processedData = [];
-                        var currentMinute = null;
-                        var minuteData = [];
-                        for (var j = 0; j < data.length; j++) {
-                            var currentDate = dayjs(data[j].date);
-                            var currentMinuteStr = currentDate.format('YYYY-MM-DD HH:mm');
-                            if (currentMinute === null) {
-                                currentMinute = currentMinuteStr;
-                                minuteData.push(data[j]);
-                            } else if (currentMinute === currentMinuteStr) {
-                                minuteData.push(data[j]);
-                            } else {
-                                var firstValue = minuteData[0].value;
-                                var lastValue = minuteData[minuteData.length - 1].value;
-                                processedData.push({ date: currentMinute, value: [firstValue, lastValue] });
-                                currentMinute = currentMinuteStr;
-                                minuteData = [data[j]];
-                            }
-                        }
-                        if (minuteData.length > 0) {
-                            var firstValue = minuteData[0].value;
-                            var lastValue = minuteData[minuteData.length - 1].value;
-                            processedData.push({ date: currentMinute, value: [firstValue, lastValue] });
-                        }
-
-                        allData = processedData;
-                        var minDate = dayjs(allData[0].date);
-                        var maxDate = dayjs(allData[allData.length - 1].date);
-                        var totalHours = maxDate.diff(minDate, 'hours');
-                        slider.max = totalHours - 24;
-                        resolve();
-                    } else {
-                        reject(new Error('数据获取失败'));
-                    }
-                };
-                xhr.onerror = function () {
-                    reject(new Error('请求出错'));
-                };
-                xhr.send();
-            });
-        }
-
-        function updateChart() {
-            var startIndex = parseInt(slider.value);
-            var endIndex = startIndex + 24;
-            var minDate = dayjs(allData[0].date);
-            var startDate = minDate.add(startIndex, 'hours').format('YYYY-MM-DD HH:mm');
-            var endDate = minDate.add(endIndex, 'hours').format('YYYY-MM-DD HH:mm');
-
-            var xAxisData = [];
-            var seriesData = [];
-            var prevValue = null;
-            for (var i = 0; i < allData.length; i++) {
-                if (dayjs(allData[i].date).isBetween(startDate, endDate, null, '[]')) {
-                    xAxisData.push(allData[i].date);
-                    var currentValue = allData[i].value;
-                    if (prevValue!== null && currentValue[0] > prevValue) {
-                        seriesData.push({
-                            value: currentValue,
-                            itemStyle: {
-                                color: 'red',
-                                color0: 'red'
-                            }
-                        });
-                    } else {
-                        seriesData.push(currentValue);
-                    }
-                    prevValue = currentValue[1];
+// 初始化图表
+function initChart() {
+    myChart = echarts.init(document.getElementById('main'));
+    
+    const option = {
+        tooltip: { trigger: 'axis' },
+        xAxis: { 
+            type: 'time',
+            axisLabel: {
+                formatter: (value) => {
+                    return echarts.time.format(value, '{HH}:{mm}', false);
                 }
             }
+        },
+        yAxis: { scale: true },
+        dataZoom: [{
+            type: 'slider',
+            start: 0,
+            end: 100,
+            minValueSpan: TWENTY_FOUR_HOURS,
+            maxValueSpan: TWENTY_FOUR_HOURS,
+            filterMode: 'none',
+            height: 40,
+            bottom: 20
+        }],
+        series: [{
+            type: 'candlestick',
+            itemStyle: {
+                color: '#ef232a',
+                color0: '#14b143',
+                borderColor: '#ef232a',
+                borderColor0: '#14b143'
+            },
+            data: []
+        }]
+    };
+    myChart.setOption(option);
+    
+    // 滑动事件监听
+    myChart.on('dataZoom', (params) => {
+        const startValue = params.startValue || rawData[0].date;
+        const endValue = new Date(startValue.getTime() + TWENTY_FOUR_HOURS);
+        updateChart(startValue, endValue);
+    });
+}
 
-            option = {
-                title: {
-                    text: '电费余额图表'
-                },
-                tooltip: {
-                    trigger: 'axis',
-                    axisPointer: {
-                        type: 'cross'
-                    }
-                },
-                xAxis: {
-                    type: 'time',
-                    data: xAxisData
-                },
-                yAxis: {},
-                series: [
-                    {
-                        type: 'candlestick',
-                        data: seriesData
-                    }
-                ]
+// 处理24小时数据
+function processData(start) {
+    const end = new Date(start.getTime() + TWENTY_FOUR_HOURS);
+    const filtered = rawData.filter(d => 
+        d.date >= start && d.date <= end
+    ).sort((a, b) => a.date - b.date);
+
+    // 按15分钟分组
+    const grouped = {};
+    filtered.forEach(d => {
+        const time = new Date(d.date);
+        const minutes = time.getMinutes();
+        const quarter = Math.floor(minutes / 15) * 15;
+        const key = new Date(time);
+        key.setMinutes(quarter, 0, 0);
+        
+        if (!grouped[key]) {
+            grouped[key] = {
+                open: d.value,
+                close: d.value,
+                high: d.value,
+                low: d.value,
+                time: key
             };
-
-            myChart.setOption(option);
+        } else {
+            grouped[key].close = d.value;
+            grouped[key].high = Math.max(grouped[key].high, d.value);
+            grouped[key].low = Math.min(grouped[key].low, d.value);
         }
+    });
 
-        fetchData().then(() => {
-            slider.addEventListener('input', updateChart);
-            updateChart();
-        }).catch(error => {
-            console.error(error);
-            alert('图表初始化失败');
-        });
-    </script>
+    return Object.values(grouped).map(d => [
+        d.time,
+        d.open,
+        d.close,
+        d.low,
+        d.high
+    ]);
+}
+
+// 更新图表
+function updateChart(start, end) {
+    const seriesData = processData(start);
+    
+    myChart.setOption({
+        xAxis: {
+            min: start,
+            max: end
+        },
+        series: [{
+            data: seriesData
+        }]
+    });
+}
+
+// 加载CSV数据
+async function loadData() {
+    const response = await fetch('data.csv');
+    const csv = await response.text();
+    
+    rawData = Papa.parse(csv, {
+        header: true,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        transform: (value, header) => {
+            if (header === 'date') {
+                return new Date(value);
+            }
+            return parseFloat(value);
+        }
+    }).data.sort((a, b) => a.date - b.date);
+
+    // 初始化显示最后24小时
+    const initialEnd = rawData[rawData.length-1].date;
+    const initialStart = new Date(initialEnd.getTime() - TWENTY_FOUR_HOURS);
+    updateChart(initialStart, initialEnd);
+}
+
+// 初始化
+window.onload = async () => {
+    initChart();
+    await loadData();
+};
+</script>
 </body>
-
 </html>
