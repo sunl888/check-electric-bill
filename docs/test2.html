@@ -13,6 +13,8 @@
 let rawData = [];
 let myChart;
 const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+let globalStartTime;
+let globalEndTime;
 
 // 初始化图表
 function initChart() {
@@ -37,23 +39,23 @@ function initChart() {
                     return echarts.time.format(value, '{HH}:00', false);
                 }
             },
-            min: 'dataMin',
-            max: 'dataMax'
+            min: globalStartTime,
+            max: globalEndTime
         },
         yAxis: { scale: true },
         dataZoom: [{
             type: 'slider',
             realtime: true,
-            start: 0,
+            start: (globalEndTime - TWENTY_FOUR_HOURS - globalStartTime) / (globalEndTime - globalStartTime) * 100,
             end: 100,
-            minSpan: 100,  // 强制24小时跨度
-            maxSpan: 100,
             filterMode: 'none',
             height: 40,
             bottom: 20,
             labelFormatter: (value) => {
                 return echarts.time.format(value, '{MM}-{dd} {HH}:{mm}', false);
-            }
+            },
+            handleSize: '120%',
+            brushSelect: false
         }],
         series: [{
             type: 'candlestick',
@@ -71,9 +73,10 @@ function initChart() {
     // 滑动事件监听
     myChart.on('datazoom', (params) => {
         const option = myChart.getOption();
-        const startValue = option.dataZoom[0].startValue;
-        const endValue = option.dataZoom[0].endValue;
-        updateChart(startValue, endValue);
+        const timeRange = globalEndTime - globalStartTime;
+        const startValue = globalStartTime + (params.start * timeRange) / 100;
+        const endValue = globalStartTime + (params.end * timeRange) / 100;
+        updateChart(new Date(startValue), new Date(endValue));
     });
 }
 
@@ -104,14 +107,9 @@ function processHourlyData(start, end) {
     });
 
     // 填充空白小时
-    const startHour = new Date(start);
-    startHour.setMinutes(0, 0, 0);
-    const endHour = new Date(end);
-    endHour.setMinutes(0, 0, 0);
-    
     const result = [];
-    for (let t = startHour; t <= endHour; t.setHours(t.getHours() + 1)) {
-        const key = t.getTime();
+    for (let t = new Date(start); t <= end; t.setHours(t.getHours() + 1)) {
+        const key = new Date(t).setMinutes(0, 0, 0);
         if (hourlyData[key]) {
             result.push([
                 new Date(key),
@@ -121,7 +119,6 @@ function processHourlyData(start, end) {
                 hourlyData[key].high
             ]);
         } else {
-            // 无数据时显示直线
             const prev = result[result.length-1];
             const val = prev ? prev[2] : 0;
             result.push([
@@ -169,23 +166,20 @@ async function loadData() {
         }
     }).data.sort((a, b) => a.date - b.date);
 
+    // 设置全局时间范围
+    globalStartTime = rawData[0].date.getTime();
+    globalEndTime = rawData[rawData.length-1].date.getTime();
+    
     // 初始化显示最后24小时
-    const initialEnd = rawData[rawData.length-1].date;
-    const initialStart = new Date(initialEnd - TWENTY_FOUR_HOURS);
+    const initialEnd = new Date(globalEndTime);
+    const initialStart = new Date(globalEndTime - TWENTY_FOUR_HOURS);
     
-    myChart.setOption({
-        dataZoom: [{
-            startValue: initialStart,
-            endValue: initialEnd
-        }]
-    });
-    
+    initChart();
     updateChart(initialStart, initialEnd);
 }
 
 // 初始化
 window.onload = async () => {
-    initChart();
     await loadData();
 };
 </script>
