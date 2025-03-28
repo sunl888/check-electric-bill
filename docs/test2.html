@@ -19,25 +19,41 @@ function initChart() {
     myChart = echarts.init(document.getElementById('main'));
     
     const option = {
-        tooltip: { trigger: 'axis' },
-        xAxis: { 
+        tooltip: {
+            trigger: 'axis',
+            formatter: (params) => {
+                const data = params[0].data;
+                return `时间：${echarts.time.format(data[0], '{yyyy}-{MM}-{dd} {HH}:{mm}')}<br/>
+                        开盘：${data[1].toFixed(2)}<br/>
+                        收盘：${data[2].toFixed(2)}<br/>
+                        最低：${data[3].toFixed(2)}<br/>
+                        最高：${data[4].toFixed(2)}`;
+            }
+        },
+        xAxis: {
             type: 'time',
             axisLabel: {
                 formatter: (value) => {
-                    return echarts.time.format(value, '{HH}:{mm}', false);
+                    return echarts.time.format(value, '{HH}:00', false);
                 }
-            }
+            },
+            min: 'dataMin',
+            max: 'dataMax'
         },
         yAxis: { scale: true },
         dataZoom: [{
             type: 'slider',
+            realtime: true,
             start: 0,
             end: 100,
-            minValueSpan: TWENTY_FOUR_HOURS,
-            maxValueSpan: TWENTY_FOUR_HOURS,
+            minSpan: 100,  // 强制24小时跨度
+            maxSpan: 100,
             filterMode: 'none',
             height: 40,
-            bottom: 20
+            bottom: 20,
+            labelFormatter: (value) => {
+                return echarts.time.format(value, '{MM}-{dd} {HH}:{mm}', false);
+            }
         }],
         series: [{
             type: 'candlestick',
@@ -53,56 +69,77 @@ function initChart() {
     myChart.setOption(option);
     
     // 滑动事件监听
-    myChart.on('dataZoom', (params) => {
-        const startValue = params.startValue || rawData[0].date;
-        const endValue = new Date(startValue.getTime() + TWENTY_FOUR_HOURS);
+    myChart.on('datazoom', (params) => {
+        const option = myChart.getOption();
+        const startValue = option.dataZoom[0].startValue;
+        const endValue = option.dataZoom[0].endValue;
         updateChart(startValue, endValue);
     });
 }
 
-// 处理24小时数据
-function processData(start) {
-    const end = new Date(start.getTime() + TWENTY_FOUR_HOURS);
-    const filtered = rawData.filter(d => 
-        d.date >= start && d.date <= end
-    ).sort((a, b) => a.date - b.date);
-
-    // 按15分钟分组
-    const grouped = {};
+// 按小时处理数据
+function processHourlyData(start, end) {
+    const filtered = rawData.filter(d => d.date >= start && d.date <= end);
+    
+    // 按小时分组
+    const hourlyData = {};
     filtered.forEach(d => {
-        const time = new Date(d.date);
-        const minutes = time.getMinutes();
-        const quarter = Math.floor(minutes / 15) * 15;
-        const key = new Date(time);
-        key.setMinutes(quarter, 0, 0);
+        const hour = new Date(d.date);
+        hour.setMinutes(0, 0, 0);
+        const key = hour.getTime();
         
-        if (!grouped[key]) {
-            grouped[key] = {
+        if (!hourlyData[key]) {
+            hourlyData[key] = {
                 open: d.value,
                 close: d.value,
                 high: d.value,
                 low: d.value,
-                time: key
+                time: hour
             };
         } else {
-            grouped[key].close = d.value;
-            grouped[key].high = Math.max(grouped[key].high, d.value);
-            grouped[key].low = Math.min(grouped[key].low, d.value);
+            hourlyData[key].close = d.value;
+            hourlyData[key].high = Math.max(hourlyData[key].high, d.value);
+            hourlyData[key].low = Math.min(hourlyData[key].low, d.value);
         }
     });
 
-    return Object.values(grouped).map(d => [
-        d.time,
-        d.open,
-        d.close,
-        d.low,
-        d.high
-    ]);
+    // 填充空白小时
+    const startHour = new Date(start);
+    startHour.setMinutes(0, 0, 0);
+    const endHour = new Date(end);
+    endHour.setMinutes(0, 0, 0);
+    
+    const result = [];
+    for (let t = startHour; t <= endHour; t.setHours(t.getHours() + 1)) {
+        const key = t.getTime();
+        if (hourlyData[key]) {
+            result.push([
+                new Date(key),
+                hourlyData[key].open,
+                hourlyData[key].close,
+                hourlyData[key].low,
+                hourlyData[key].high
+            ]);
+        } else {
+            // 无数据时显示直线
+            const prev = result[result.length-1];
+            const val = prev ? prev[2] : 0;
+            result.push([
+                new Date(key),
+                val,
+                val,
+                val,
+                val
+            ]);
+        }
+    }
+    
+    return result;
 }
 
 // 更新图表
 function updateChart(start, end) {
-    const seriesData = processData(start);
+    const seriesData = processHourlyData(start, end);
     
     myChart.setOption({
         xAxis: {
@@ -134,7 +171,15 @@ async function loadData() {
 
     // 初始化显示最后24小时
     const initialEnd = rawData[rawData.length-1].date;
-    const initialStart = new Date(initialEnd.getTime() - TWENTY_FOUR_HOURS);
+    const initialStart = new Date(initialEnd - TWENTY_FOUR_HOURS);
+    
+    myChart.setOption({
+        dataZoom: [{
+            startValue: initialStart,
+            endValue: initialEnd
+        }]
+    });
+    
     updateChart(initialStart, initialEnd);
 }
 
