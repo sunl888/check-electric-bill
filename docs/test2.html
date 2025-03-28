@@ -15,20 +15,21 @@
             width: 100%;
             height: 600px;
         }
-
-        #date-picker {
-            margin-bottom: 10px;
+        #slider-container {
+            margin-top: 20px;
+            width: 100%;
+        }
+        #date-slider {
+            width: 100%;
         }
     </style>
 </head>
 
 <body>
-    <div id="date-picker">
-        <input type="datetime-local" id="start-date">
-        <input type="datetime-local" id="end-date">
-        <button onclick="updateChart()">查询</button>
-    </div>
     <div id="main"></div>
+    <div id="slider-container">
+        <input type="range" id="date-slider" min="0" max="0" value="0">
+    </div>
     <script>
         dayjs.extend(window.dayjs_plugin_utc);
         dayjs.extend(window.dayjs_plugin_timezone);
@@ -38,10 +39,13 @@
         var myChart = echarts.init(chartDom);
         var option;
 
-        function fetchData(startDate, endDate) {
+        var allData = [];
+        var slider = document.getElementById('date-slider');
+
+        function fetchData() {
             return new Promise((resolve, reject) => {
                 var xhr = new XMLHttpRequest();
-                xhr.open('GET', `https://sunl888.github.io/check-electric-bill/data.csv`, true);
+                xhr.open('GET', `/mnt/data.csv`, true);
                 xhr.onload = function () {
                     if (this.status === 200) {
                         var lines = this.responseText.split('\n').filter(line => line.trim()!== '');
@@ -53,9 +57,7 @@
                             var line = lines[i].split(',');
                             var date = line[dateIndex];
                             var value = parseFloat(line[valueIndex]);
-                            if (dayjs(date).isBetween(startDate, endDate, null, '[]')) {
-                                data.push({ date: date, value: value });
-                            }
+                            data.push({ date: date, value: value });
                         }
 
                         // 处理同一分钟内多条数据的情况
@@ -84,7 +86,12 @@
                             processedData.push({ date: currentMinute, value: [firstValue, lastValue] });
                         }
 
-                        resolve(processedData);
+                        allData = processedData;
+                        var minDate = dayjs(allData[0].date);
+                        var maxDate = dayjs(allData[allData.length - 1].date);
+                        var totalHours = maxDate.diff(minDate, 'hours');
+                        slider.max = totalHours - 24;
+                        resolve();
                     } else {
                         reject(new Error('数据获取失败'));
                     }
@@ -97,22 +104,19 @@
         }
 
         function updateChart() {
-            var startDate = document.getElementById('start-date').value;
-            var endDate = document.getElementById('end-date').value;
-            if (startDate === '' || endDate === '') {
-                alert('请选择完整的时间区间');
-                return;
-            }
-            startDate = dayjs(startDate).format('YYYY-MM-DD HH:mm');
-            endDate = dayjs(endDate).format('YYYY-MM-DD HH:mm');
+            var startIndex = parseInt(slider.value);
+            var endIndex = startIndex + 24;
+            var minDate = dayjs(allData[0].date);
+            var startDate = minDate.add(startIndex, 'hours').format('YYYY-MM-DD HH:mm');
+            var endDate = minDate.add(endIndex, 'hours').format('YYYY-MM-DD HH:mm');
 
-            fetchData(startDate, endDate).then(data => {
-                var xAxisData = [];
-                var seriesData = [];
-                var prevValue = null;
-                for (var i = 0; i < data.length; i++) {
-                    xAxisData.push(data[i].date);
-                    var currentValue = data[i].value;
+            var xAxisData = [];
+            var seriesData = [];
+            var prevValue = null;
+            for (var i = 0; i < allData.length; i++) {
+                if (dayjs(allData[i].date).isBetween(startDate, endDate, null, '[]')) {
+                    xAxisData.push(allData[i].date);
+                    var currentValue = allData[i].value;
                     if (prevValue!== null && currentValue[0] > prevValue) {
                         seriesData.push({
                             value: currentValue,
@@ -126,46 +130,41 @@
                     }
                     prevValue = currentValue[1];
                 }
+            }
 
-                var timeDiff = dayjs(endDate).diff(dayjs(startDate));
-                var xAxisType = 'category';
-                if (timeDiff < 1000 * 60 * 60 * 24) {
-                    // 时间区间小于一天，按小时排列
-                    xAxisType = 'time';
-                } else if (timeDiff < 1000 * 60 * 60 * 24 * 7) {
-                    // 时间区间小于一周，按几小时排列
-                    xAxisType = 'time';
-                }
+            option = {
+                title: {
+                    text: '电费余额图表'
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'cross'
+                    }
+                },
+                xAxis: {
+                    type: 'time',
+                    data: xAxisData
+                },
+                yAxis: {},
+                series: [
+                    {
+                        type: 'candlestick',
+                        data: seriesData
+                    }
+                ]
+            };
 
-                option = {
-                    title: {
-                        text: '电费余额图表'
-                    },
-                    tooltip: {
-                        trigger: 'axis',
-                        axisPointer: {
-                            type: 'cross'
-                        }
-                    },
-                    xAxis: {
-                        type: xAxisType,
-                        data: xAxisData
-                    },
-                    yAxis: {},
-                    series: [
-                        {
-                            type: 'candlestick',
-                            data: seriesData
-                        }
-                    ]
-                };
-
-                myChart.setOption(option);
-            }).catch(error => {
-                console.error(error);
-                alert('图表更新失败');
-            });
+            myChart.setOption(option);
         }
+
+        fetchData().then(() => {
+            slider.addEventListener('input', updateChart);
+            updateChart();
+        }).catch(error => {
+            console.error(error);
+            alert('图表初始化失败');
+        });
     </script>
 </body>
 
