@@ -1,176 +1,192 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>电费使用情况报表</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 20px;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>电费使用情况报表</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
 
-        #main {
-            display: flex;
-            flex-direction: column;
-            width: 98%;
-            height: 750px;
-            margin: 0 auto;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
+    #main {
+      display: flex;
+      flex-direction: column;
+      width: 98%;
+      height: 750px;
+      margin: 0 auto;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
 
-        .chart-container {
-            flex: 1;
-            margin: 10px;
-            min-width: 800px;
-        }
-    </style>
+    .chart-container {
+      flex: 1;
+      margin: 10px;
+      min-width: 800px;
+    }
+  </style>
 </head>
 
 <body>
-    <div id="main">
-        <div id="gauge-chart" class="chart-container"></div>
-        <div id="line-chart" class="chart-container"></div>
-    </div>
-    <script>
-        let lineChart, gaugeChart;
-        let allData = [];
+  <div id="main">
+    <div id="gauge-chart" class="chart-container"></div>
+    <div id="line-chart" class="chart-container"></div>
+  </div>
 
-        Papa.parse('data.csv', {
-            download: true,
-            skipEmptyLines: true,
-            complete: function (results) {
-                processData(results.data);
-                initCharts();
-            }
-        });
+  <script>
+    let lineChart, gaugeChart;
+    let allData = [];
 
-        function processData(data) {
-            const hourlyData = new Map();
+    Papa.parse("data.csv", {
+      download: true,
+      skipEmptyLines: true,
+      complete: function (results) {
+        processData(results.data);
+        initCharts();
+      },
+    });
 
-            data.forEach((row, index) => {
-                if (index === 0 && row[0].toLowerCase().includes('date')) return; // 跳过表头
+    function processData(data) {
+      const hourlyData = new Map();
 
-                if (row.length >= 2) {
-                    const rawDate = dayjs(row[0], "YYYY-MM-DD HH:mm").toDate();
-                    const hourStart = new Date(rawDate);
-                    hourStart.setMinutes(0, 0, 0);
+      data.forEach((row, index) => {
+        if (index === 0 && row[0].toLowerCase().includes("date")) return; // 跳过表头
 
-                    const timestamp = hourStart.getTime();
-                    const value = parseFloat(row[1]);
+        if (row.length >= 2) {
+          const timeStr = row[0].replace(" ", "T"); // 将 "2024-10-16 14:03" 变成 "2024-10-16T14:03"
+          const rawDate = new Date(timeStr);
 
-                    if (!isNaN(timestamp) && !isNaN(value)) {
-                        hourlyData.set(timestamp, value);
-                    } else {
-                        console.warn("跳过无效数据:", row[0], row[1]);
-                    }
-                }
-            });
+          console.log("原始字符串:", row[0], "| 替换后:", timeStr, "| Date对象:", rawDate);
 
-            allData = Array.from(hourlyData)
-                .sort((a, b) => a[0] - b[0])
-                .map(item => ({
-                    timestamp: item[0],
-                    value: item[1]
-                }));
+          if (isNaN(rawDate.getTime())) {
+            console.warn("无效时间数据被跳过:", row[0]);
+            return;
+          }
+
+          const hourStart = new Date(rawDate);
+          hourStart.setMinutes(0, 0, 0);
+          const timestamp = hourStart.getTime();
+
+          const value = parseFloat(row[1]);
+          if (!isNaN(value)) {
+            hourlyData.set(timestamp, value);
+          }
         }
+      });
 
-        function initCharts() {
-            lineChart = echarts.init(document.getElementById('line-chart'));
-            gaugeChart = echarts.init(document.getElementById('gauge-chart'));
+      allData = Array.from(hourlyData)
+        .sort((a, b) => a[0] - b[0])
+        .map((item) => ({
+          timestamp: item[0],
+          value: item[1],
+        }));
 
-            const lineOption = {
-                title: {
-                    text: '用电趋势（每小时数据）',
-                    left: 'center',
-                    textStyle: { fontSize: 24, fontWeight: 'bold' }
-                },
-                tooltip: {
-                    trigger: 'axis',
-                    formatter: function (params) {
-                        const date = new Date(params[0].value[0]);
-                        return `${date.toLocaleDateString()} ${date.getHours()}:00<br/>电费：${params[0].value[1]}`;
-                    }
-                },
-                xAxis: {
-                    type: 'time',
-                    minInterval: 3600 * 1000,
-                    axisLabel: {
-                        formatter: function (value) {
-                            const date = new Date(value);
-                            return `${date.getHours()}:00`;
-                        }
-                    },
-                    splitLine: { show: true, lineStyle: { color: '#eee' } }
-                },
-                yAxis: {
-                    type: 'value',
-                    splitLine: { show: true, lineStyle: { color: '#eee' } }
-                },
-                dataZoom: [{
-                    type: 'slider',
-                    xAxisIndex: 0,
-                    start: 50,
-                    end: 100,
-                    height: 20,
-                    bottom: 10,
-                    handleStyle: { color: '#1f77b4' },
-                    fillerColor: 'rgba(31, 119, 180, 0.2)'
-                }],
-                series: [{
-                    name: '剩余电费',
-                    type: 'line',
-                    data: allData.map(item => [item.timestamp, item.value]),
-                    smooth: true,
-                    symbol: 'none',
-                    itemStyle: { color: '#1f77b4' },
-                    areaStyle: { color: 'rgba(31, 119, 180, 0.2)' }
-                }]
-            };
+      console.log("整理后的数据：", allData);
+    }
 
-            lineChart.setOption(lineOption);
-            updateGauge(allData[allData.length - 1].value);
+    function initCharts() {
+      lineChart = echarts.init(document.getElementById("line-chart"));
+      gaugeChart = echarts.init(document.getElementById("gauge-chart"));
 
-            lineChart.on('dataZoom', function () {
-                const options = lineChart.getOption();
-                const currentRange = options.dataZoom[0];
-                const startValue = currentRange.startValue || allData[0].timestamp;
-                const endValue = currentRange.endValue || allData[allData.length - 1].timestamp;
+      const lineOption = {
+        title: {
+          text: "用电趋势（每小时数据）",
+          left: "center",
+          textStyle: { fontSize: 24, fontWeight: "bold" },
+        },
+        tooltip: {
+          trigger: "axis",
+          formatter: function (params) {
+            const date = new Date(params[0].value[0]);
+            return `${date.toLocaleDateString()} ${date.getHours()}:00<br/>电费：${params[0].value[1]}`;
+          },
+        },
+        xAxis: {
+          type: "time",
+          minInterval: 3600 * 1000,
+          axisLabel: {
+            formatter: function (value) {
+              const date = new Date(value);
+                console.log("当前date",date);
+              return `${date.getHours()}:00`;
+            },
+          },
+          splitLine: { show: true, lineStyle: { color: "#eee" } },
+        },
+        yAxis: {
+          type: "value",
+          splitLine: { show: true, lineStyle: { color: "#eee" } },
+        },
+        dataZoom: [
+          {
+            type: "slider",
+            xAxisIndex: 0,
+            start: 50,
+            end: 100,
+            height: 20,
+            bottom: 10,
+            handleStyle: { color: "#1f77b4" },
+            fillerColor: "rgba(31, 119, 180, 0.2)",
+          },
+        ],
+        series: [
+          {
+            name: "剩余电费",
+            type: "line",
+            data: allData.map((item) => [item.timestamp, item.value]),
+            smooth: true,
+            symbol: "none",
+            itemStyle: { color: "#1f77b4" },
+            areaStyle: { color: "rgba(31, 119, 180, 0.2)" },
+          },
+        ],
+      };
 
-                const lastVisibleData = allData.reduce((acc, curr) => {
-                    return (curr.timestamp <= endValue) ? curr : acc;
-                }, { value: 0 });
+      lineChart.setOption(lineOption);
+      updateGauge(allData[allData.length - 1].value);
 
-                updateGauge(lastVisibleData.value);
-            });
-        }
+      lineChart.on("dataZoom", function () {
+        const options = lineChart.getOption();
+        const currentRange = options.dataZoom[0];
+        const startValue = currentRange.startValue || allData[0].timestamp;
+        const endValue =
+          currentRange.endValue || allData[allData.length - 1].timestamp;
 
-        function updateGauge(value) {
-            gaugeChart.setOption({
-                title: { text: '当前电费', left: 'center' },
-                series: [{
-                    max: 220,
-                    name: '电费',
-                    type: 'gauge',
-                    axisLine: { lineStyle: { width: 15 } },
-                    detail: {
-                        formatter: '{value}',
-                        fontSize: 24,
-                        offsetCenter: [0, '60%']
-                    },
-                    data: [{ value: value, name: '电费' }]
-                }]
-            });
-        }
-    </script>
+        const lastVisibleData = allData.reduce((acc, curr) => {
+          return curr.timestamp <= endValue ? curr : acc;
+        }, { value: 0 });
+
+        updateGauge(lastVisibleData.value);
+      });
+    }
+
+    function updateGauge(value) {
+      gaugeChart.setOption({
+        title: { text: "当前电费", left: "center" },
+        series: [
+          {
+            max: 220,
+            name: "电费",
+            type: "gauge",
+            axisLine: { lineStyle: { width: 15 } },
+            detail: {
+              formatter: "{value}",
+              fontSize: 24,
+              offsetCenter: [0, "60%"],
+            },
+            data: [{ value: value, name: "电费" }],
+          },
+        ],
+      });
+    }
+  </script>
 </body>
 
 </html>
