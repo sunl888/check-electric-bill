@@ -18,9 +18,8 @@
         #main {
             display: flex;
             flex-direction: column;
-            width: 100%;
-            max-width: 1100px;
-            height: 750px; /* 增加高度以适应滑动条 */
+            width: 98%;  /* 加宽容器 */
+            height: 750px;
             margin: 0 auto;
             background-color: #fff;
             border-radius: 8px;
@@ -29,7 +28,8 @@
 
         .chart-container {
             flex: 1;
-            margin-bottom: 10px;
+            margin: 10px;
+            min-width: 800px;  /* 最小宽度限制 */
         }
     </style>
 </head>
@@ -52,36 +52,58 @@
         });
 
         function processData(data) {
-            const tempMap = new Map();
+            const hourlyData = new Map();
+            
             data.forEach(row => {
                 if (row.length >= 2) {
-                    const dateStr = row[0].slice(0, 13).replace(/:\d{2}$/, '');
-                    const timestamp = new Date(dateStr + ":00:00").getTime();
-                    tempMap.set(timestamp, parseFloat(row[1]));
+                    // 标准化时间到小时（去除分钟）
+                    const rawDate = new Date(row[0]);
+                    const hourStart = new Date(rawDate);
+                    hourStart.setMinutes(0, 0, 0);  // 归零分钟和秒
+                    
+                    const timestamp = hourStart.getTime();
+                    const value = parseFloat(row[1]);
+                    
+                    // 保留最后一个出现的小时数据
+                    hourlyData.set(timestamp, value);
                 }
             });
-            
+
             // 转换为排序后的数组
-            allData = Array.from(tempMap).sort((a, b) => a[0] - b[0]);
+            allData = Array.from(hourlyData)
+                          .sort((a, b) => a[0] - b[0])
+                          .map(item => ({
+                            timestamp: item[0],
+                            value: item[1]
+                          }));
         }
 
         function initCharts() {
             lineChart = echarts.init(document.getElementById('line-chart'));
             gaugeChart = echarts.init(document.getElementById('gauge-chart'));
 
-            const timeData = allData.map(item => item[0]);
-            const valueData = allData.map(item => item[1]);
-
             const lineOption = {
                 title: {
-                    text: '用电趋势',
+                    text: '用电趋势（每小时数据）',
                     left: 'center',
                     textStyle: { fontSize: 24, fontWeight: 'bold' }
                 },
-                tooltip: { trigger: 'axis' },
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: function (params) {
+                        const date = new Date(params[0].value[0]);
+                        return `${date.toLocaleDateString()} ${date.getHours()}:00<br/>电费：${params[0].value[1]}`;
+                    }
+                },
                 xAxis: {
                     type: 'time',
-                    axisLabel: { formatter: '{yyyy}-{MM}-{dd} {HH}:00' },
+                    minInterval: 3600 * 1000, // 强制每小时显示一个刻度
+                    axisLabel: {
+                        formatter: function (value) {
+                            const date = new Date(value);
+                            return `${date.getHours()}:00`;  // 只显示小时
+                        }
+                    },
                     splitLine: { show: true, lineStyle: { color: '#eee' } }
                 },
                 yAxis: {
@@ -90,44 +112,40 @@
                 },
                 dataZoom: [{
                     type: 'slider',
-                    show: true,
                     xAxisIndex: 0,
-                    start: 50, // 初始显示后50%的数据
+                    start: 50,
                     end: 100,
                     height: 20,
                     bottom: 10,
-                    handleStyle: { color: '#1f77b4' }
+                    handleStyle: { color: '#1f77b4' },
+                    fillerColor: 'rgba(31, 119, 180, 0.2)'
                 }],
                 series: [{
                     name: '剩余电费',
                     type: 'line',
-                    data: allData.map(item => [item[0], item[1]]),
+                    data: allData.map(item => [item.timestamp, item.value]),
                     smooth: true,
+                    symbol: 'none',  // 隐藏数据点
                     itemStyle: { color: '#1f77b4' },
                     areaStyle: { color: 'rgba(31, 119, 180, 0.2)' }
                 }]
             };
 
             lineChart.setOption(lineOption);
-            updateGauge(allData[allData.length - 1][1]);
+            updateGauge(allData[allData.length - 1].value);
 
-            // 绑定dataZoom事件
             lineChart.on('dataZoom', function(params) {
                 const options = lineChart.getOption();
-                const startValue = options.dataZoom[0].startValue || timeData[0];
-                const endValue = options.dataZoom[0].endValue || timeData[timeData.length - 1];
+                const currentRange = options.dataZoom[0];
+                const startValue = currentRange.startValue || allData[0].timestamp;
+                const endValue = currentRange.endValue || allData[allData.length - 1].timestamp;
                 
-                // 找到可视范围内的最后一个数据点
-                let lastValue = null;
-                for (let i = allData.length - 1; i >= 0; i--) {
-                    if (allData[i][0] <= endValue) {
-                        lastValue = allData[i][1];
-                        break;
-                    }
-                }
-                if (lastValue !== null) {
-                    updateGauge(lastValue);
-                }
+                // 查找可视范围内的最后一个有效数据
+                const lastVisibleData = allData.reduce((acc, curr) => {
+                    return (curr.timestamp <= endValue) ? curr : acc;
+                }, { value: 0 });
+
+                updateGauge(lastVisibleData.value);
             });
         }
 
@@ -138,7 +156,12 @@
                     max: 220,
                     name: '电费',
                     type: 'gauge',
-                    detail: { formatter: '{value}' },
+                    axisLine: { lineStyle: { width: 15 } },
+                    detail: { 
+                        formatter: '{value}',
+                        fontSize: 24,
+                        offsetCenter: [0, '60%']
+                    },
                     data: [{ value: value, name: '电费' }]
                 }]
             });
