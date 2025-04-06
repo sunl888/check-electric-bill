@@ -81,8 +81,6 @@
           timestamp: item[0],
           value: item[1],
         }));
-
-      console.log("数据预览:", allData);
     }
 
     function initCharts() {
@@ -107,13 +105,14 @@
           minInterval: 3600 * 1000,
           splitNumber: 8,
           axisLabel: {
+            rotate: -45, // 向左下倾斜
             formatter: function (value) {
               const date = new Date(value);
+              const year = date.getFullYear().toString().slice(-2);
               const month = (date.getMonth() + 1).toString().padStart(2, "0");
               const day = date.getDate().toString().padStart(2, "0");
               const hour = date.getHours().toString().padStart(2, "0");
-              const min = date.getMinutes().toString().padStart(2, "0");
-              return `${month}-${day} ${hour}:${min}`;
+              return `${year}/${month}/${day} ${hour}`;
             },
           },
           splitLine: { show: true, lineStyle: { color: "#eee" } },
@@ -153,7 +152,6 @@
       lineChart.on("dataZoom", function () {
         const options = lineChart.getOption();
         const currentRange = options.dataZoom[0];
-        const startValue = currentRange.startValue || allData[0].timestamp;
         const endValue =
           currentRange.endValue || allData[allData.length - 1].timestamp;
 
