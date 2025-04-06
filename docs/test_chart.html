@@ -57,18 +57,12 @@
       const hourlyData = new Map();
 
       data.forEach((row, index) => {
-        if (index === 0 && row[0].toLowerCase().includes("date")) return; // 跳过表头
+        if (index === 0 && row[0].toLowerCase().includes("date")) return;
 
         if (row.length >= 2) {
-          const timeStr = row[0].replace(" ", "T"); // 将 "2024-10-16 14:03" 变成 "2024-10-16T14:03"
+          const timeStr = row[0].replace(" ", "T");
           const rawDate = new Date(timeStr);
-
-          console.log("原始字符串:", row[0], "| 替换后:", timeStr, "| Date对象:", rawDate);
-
-          if (isNaN(rawDate.getTime())) {
-            console.warn("无效时间数据被跳过:", row[0]);
-            return;
-          }
+          if (isNaN(rawDate.getTime())) return;
 
           const hourStart = new Date(rawDate);
           hourStart.setMinutes(0, 0, 0);
@@ -88,7 +82,7 @@
           value: item[1],
         }));
 
-      console.log("整理后的数据：", allData);
+      console.log("数据预览:", allData);
     }
 
     function initCharts() {
@@ -111,11 +105,15 @@
         xAxis: {
           type: "time",
           minInterval: 3600 * 1000,
+          splitNumber: 8,
           axisLabel: {
             formatter: function (value) {
               const date = new Date(value);
-                console.log("当前date",date);
-              return `${date.getHours()}:00`;
+              const month = (date.getMonth() + 1).toString().padStart(2, "0");
+              const day = date.getDate().toString().padStart(2, "0");
+              const hour = date.getHours().toString().padStart(2, "0");
+              const min = date.getMinutes().toString().padStart(2, "0");
+              return `${month}-${day} ${hour}:${min}`;
             },
           },
           splitLine: { show: true, lineStyle: { color: "#eee" } },
@@ -150,7 +148,7 @@
       };
 
       lineChart.setOption(lineOption);
-      updateGauge(allData[allData.length - 1].value);
+      updateGauge(allData[allData.length - 1]?.value || 0);
 
       lineChart.on("dataZoom", function () {
         const options = lineChart.getOption();
