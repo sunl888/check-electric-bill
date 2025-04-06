@@ -7,6 +7,7 @@
     <title>电费使用情况报表</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -18,7 +19,7 @@
         #main {
             display: flex;
             flex-direction: column;
-            width: 98%;  /* 加宽容器 */
+            width: 98%;
             height: 750px;
             margin: 0 auto;
             background-color: #fff;
@@ -29,7 +30,7 @@
         .chart-container {
             flex: 1;
             margin: 10px;
-            min-width: 800px;  /* 最小宽度限制 */
+            min-width: 800px;
         }
     </style>
 </head>
@@ -45,6 +46,7 @@
 
         Papa.parse('data.csv', {
             download: true,
+            skipEmptyLines: true,
             complete: function (results) {
                 processData(results.data);
                 initCharts();
@@ -53,29 +55,32 @@
 
         function processData(data) {
             const hourlyData = new Map();
-            
-            data.forEach(row => {
+
+            data.forEach((row, index) => {
+                if (index === 0 && row[0].toLowerCase().includes('date')) return; // 跳过表头
+
                 if (row.length >= 2) {
-                    // 标准化时间到小时（去除分钟）
-                    const rawDate = new Date(row[0]);
+                    const rawDate = dayjs(row[0], "YYYY-MM-DD HH:mm").toDate();
                     const hourStart = new Date(rawDate);
-                    hourStart.setMinutes(0, 0, 0);  // 归零分钟和秒
-                    
+                    hourStart.setMinutes(0, 0, 0);
+
                     const timestamp = hourStart.getTime();
                     const value = parseFloat(row[1]);
-                    
-                    // 保留最后一个出现的小时数据
-                    hourlyData.set(timestamp, value);
+
+                    if (!isNaN(timestamp) && !isNaN(value)) {
+                        hourlyData.set(timestamp, value);
+                    } else {
+                        console.warn("跳过无效数据:", row[0], row[1]);
+                    }
                 }
             });
 
-            // 转换为排序后的数组
             allData = Array.from(hourlyData)
-                          .sort((a, b) => a[0] - b[0])
-                          .map(item => ({
-                            timestamp: item[0],
-                            value: item[1]
-                          }));
+                .sort((a, b) => a[0] - b[0])
+                .map(item => ({
+                    timestamp: item[0],
+                    value: item[1]
+                }));
         }
 
         function initCharts() {
@@ -97,11 +102,11 @@
                 },
                 xAxis: {
                     type: 'time',
-                    minInterval: 3600 * 1000, // 强制每小时显示一个刻度
+                    minInterval: 3600 * 1000,
                     axisLabel: {
                         formatter: function (value) {
                             const date = new Date(value);
-                            return `${date.getHours()}:00`;  // 只显示小时
+                            return `${date.getHours()}:00`;
                         }
                     },
                     splitLine: { show: true, lineStyle: { color: '#eee' } }
@@ -125,7 +130,7 @@
                     type: 'line',
                     data: allData.map(item => [item.timestamp, item.value]),
                     smooth: true,
-                    symbol: 'none',  // 隐藏数据点
+                    symbol: 'none',
                     itemStyle: { color: '#1f77b4' },
                     areaStyle: { color: 'rgba(31, 119, 180, 0.2)' }
                 }]
@@ -134,13 +139,12 @@
             lineChart.setOption(lineOption);
             updateGauge(allData[allData.length - 1].value);
 
-            lineChart.on('dataZoom', function(params) {
+            lineChart.on('dataZoom', function () {
                 const options = lineChart.getOption();
                 const currentRange = options.dataZoom[0];
                 const startValue = currentRange.startValue || allData[0].timestamp;
                 const endValue = currentRange.endValue || allData[allData.length - 1].timestamp;
-                
-                // 查找可视范围内的最后一个有效数据
+
                 const lastVisibleData = allData.reduce((acc, curr) => {
                     return (curr.timestamp <= endValue) ? curr : acc;
                 }, { value: 0 });
@@ -157,7 +161,7 @@
                     name: '电费',
                     type: 'gauge',
                     axisLine: { lineStyle: { width: 15 } },
-                    detail: { 
+                    detail: {
                         formatter: '{value}',
                         fontSize: 24,
                         offsetCenter: [0, '60%']
@@ -168,4 +172,5 @@
         }
     </script>
 </body>
+
 </html>
