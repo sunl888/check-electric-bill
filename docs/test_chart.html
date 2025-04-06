@@ -102,7 +102,7 @@
         },
         xAxis: {
           type: "time",
-          splitNumber: 16, // 让刻度密集
+          splitNumber: 20, // 让刻度密集
           axisLabel: {
             rotate: -60, // 向左下倾斜
             formatter: function (value) {
@@ -111,7 +111,8 @@
               const month = (date.getMonth() + 1).toString().padStart(2, "0");
               const day = date.getDate().toString().padStart(2, "0");
               const hour = date.getHours().toString().padStart(2, "0");
-              return `${year}/${month}/${day} ${hour}`;
+              // return `${year}/${month}/${day} ${hour}`;
+              return `${month}/${day} ${hour}`;
             },
           },
           splitLine: { show: true, lineStyle: { color: "#eee" } },
@@ -127,7 +128,7 @@
             start: 50,
             end: 100,
             height: 20,
-            bottom: 10,
+            bottom: 40,
             handleStyle: { color: "#1f77b4" },
             fillerColor: "rgba(31, 119, 180, 0.2)",
           },
