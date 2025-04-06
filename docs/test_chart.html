@@ -102,10 +102,9 @@
         },
         xAxis: {
           type: "time",
-          minInterval: 3600 * 1000,
-          splitNumber: 8,
+          splitNumber: 16, // 让刻度密集
           axisLabel: {
-            rotate: -45, // 向左下倾斜
+            rotate: -60, // 向左下倾斜
             formatter: function (value) {
               const date = new Date(value);
               const year = date.getFullYear().toString().slice(-2);
