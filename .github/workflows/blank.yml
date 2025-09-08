@@ -1,12 +1,12 @@
-name: 检查电费并发送通知 
-  
+name: 检查电费并发送通知
+
 on:  
   schedule:  
     # 每1h运行一次  
     - cron: '0 */1 * * *'
     
   workflow_dispatch: 
-  
+
 jobs:  
   check-number-and-send-email:  
     runs-on: ubuntu-latest  
@@ -18,26 +18,36 @@ jobs:
         uses: actions/checkout@v4 
         
       - name: 安装依赖工具
-        run: sudo apt-get install -y bc
+        run: sudo apt-get install -y bc perl
           
       - name: 检查电费 
         id: check-number  
         run: |  
-          RESPONSE=$(curl -s -H "User-Agent: Android 6.0" https://www.wap.cnyiot.com/nat/pay.aspx?mid=19500754882)
-          # 提取电费数据
-          NUMBER=$(echo "$RESPONSE" | grep -oP 'inline-block;">\K\d+\.\d+(?=</label> <span>元<)')
-          
-          # 检查提取结果
+          RESPONSE=$(curl -sL --retry 3 --max-time 20 \
+            -A "Mozilla/5.0 (Linux; Android 6.0) AppleWebKit/537.36 (KHTML, like Gecko) Mobile Safari/537.36" \
+            "https://www.wap.cnyiot.com/nat/pay.aspx?mid=19500754882")
+
+          # 转成单行，避免换行影响匹配
+          ONE_LINE=$(printf "%s" "$RESPONSE" | tr -d '\n')
+
+          # 优先匹配 剩余金额:<span>...</span><label>195.41</label>
+          NUMBER=$(echo "$ONE_LINE" | perl -nle 'print $1 if /剩余金额:<\/span>\s*<label[^>]*>([\d.]+)<\/label>/')
+
+          # 兜底匹配：紧邻 元 的 label 数值
           if [ -z "$NUMBER" ]; then
-            echo "无法提取电费数据"
-            exit 1
+            NUMBER=$(echo "$ONE_LINE" | perl -nle 'print $1 if /<label[^>]*>([\d.]+)<\/label>\s*<span>\s*元/')
           fi
           
+          if [ -z "$NUMBER" ]; then
+            echo "无法提取电费数据，输出部分页面内容用于排查："
+            echo "$RESPONSE" | sed -n '1,150p'
+            exit 1
+          fi
+
           echo "当前电费: $NUMBER"  
           echo "电费提醒阈值: ${{ vars.ELECTRIC_NOTICE_VAL }}"
           echo "$(date +'%Y-%m-%d %H:%M'),$NUMBER" >> docs/data.csv
           
-          # 判断电费是否不足
           if (( $(echo "$NUMBER < ${{ vars.ELECTRIC_NOTICE_VAL }}" | bc -l) )); then
             echo "send_email=true" >> $GITHUB_OUTPUT
             echo "number=$NUMBER" >> $GITHUB_OUTPUT
