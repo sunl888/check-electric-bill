@@ -12,26 +12,27 @@ jobs:
     runs-on: ubuntu-latest  
     env:  
       TZ: Asia/Shanghai # 设置时区为上海
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 用于推送更改到GitHub仓库  
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:  
-      - name: 安装 tzdata 工具
-        run: sudo apt-get install -y tzdata  
-  
-      - name: 设置时区  
-        run: sudo timedatectl set-timezone $TZ  
-  
       - name: 进入仓库  
-        uses: actions/checkout@v2 
+        uses: actions/checkout@v4 
         
-      - name: 拉取变更
-        run: |   
-          git pull  
+      - name: 安装依赖工具
+        run: sudo apt-get install -y bc
           
       - name: 检查电费 
         id: check-number  
         run: |  
           RESPONSE=$(curl -s -H "User-Agent: Android 6.0" https://www.wap.cnyiot.com/nat/pay.aspx?mid=19500754882)
-          NUMBER=$(echo $RESPONSE | grep -oP 'inline-block;">\K\d+\.\d+(?=</label> <span>元<)')
+          # 提取电费数据
+          NUMBER=$(echo "$RESPONSE" | grep -oP 'inline-block;">\K\d+\.\d+(?=</label> <span>元<)')
+          
+          # 检查提取结果
+          if [ -z "$NUMBER" ]; then
+            echo "无法提取电费数据"
+            exit 1
+          fi
+          
           echo "当前电费: $NUMBER"  
           echo "电费提醒阈值: ${{ vars.ELECTRIC_NOTICE_VAL }}"
           echo "$(date +'%Y-%m-%d %H:%M'),$NUMBER" >> docs/data.csv
@@ -48,8 +49,14 @@ jobs:
         run: |  
           git config --local user.email "2013855675@qq.com"  
           git config --local user.name "sunl888"  
-          git commit -am "Update electricity bill data"  
-          git push  
+          git add docs/data.csv
+          # 只有存在变更时才提交
+          if git diff --cached --quiet; then
+            echo "无数据变更，无需提交"
+          else
+            git commit -m "Update electricity bill data"
+            git push
+          fi
           
       - name: 发送电费不足通知  
         if: steps.check-number.outputs.send_email == 'true'  
@@ -64,4 +71,3 @@ jobs:
           from: ${{ secrets.FROM_MAIL }} 
           body: | 
               你的电费已不足，请尽快充电: ${{ steps.check-number.outputs.number }}
-              
