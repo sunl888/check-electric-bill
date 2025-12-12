@@ -23,9 +23,17 @@ jobs:
       - name: 检查电费 
         id: check-number  
         run: |  
+          # RESPONSE=$(curl -sL --retry 3 --max-time 20 \
+          #   -A "Mozilla/5.0 (Linux; Android 6.0) AppleWebKit/537.36 (KHTML, like Gecko) Mobile Safari/537.36" \
+          #   "https://www.wap.cnyiot.com/nat/pay.aspx?mid=19500754882")
           RESPONSE=$(curl -sL --retry 3 --max-time 20 \
-            -A "Mozilla/5.0 (Linux; Android 6.0) AppleWebKit/537.36 (KHTML, like Gecko) Mobile Safari/537.36" \
-            "https://www.wap.cnyiot.com/nat/pay.aspx?mid=19500754882")
+            -H "User-Agent: Mozilla/5.0 (Linux; Android 10; SM-G9730) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0 Mobile Safari/537.36" \
+            -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
+            -H "Accept-Language: zh-CN,zh;q=0.9" \
+            -H "Referer: https://www.wap.cnyiot.com/" \
+            -H "Connection: keep-alive" \
+            "https://www.wap.cnyiot.com/nat/pay.aspx?mid=19500754882"
+          )
 
           # 转成单行，避免换行影响匹配
           ONE_LINE=$(printf "%s" "$RESPONSE" | tr -d '\n')
